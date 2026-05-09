@@ -1,383 +1,343 @@
-# UserInternalAffair — 玩家个人内政数据管理类
+# UserInternalAffair - 内政系统
 
 ## 概述
-
-| 项目 | 说明 |
-|------|------|
-| **文件路径** | `src/system/role/user_data/UserInternalAffair/UserInternalAffair.ts` |
-| **类名** | `UserInternalAffair` |
-| **核心职责** | 玩家个人内政系统的**数据中心类**，管理内政所有子系统的状态、配置映射、业务逻辑计算 |
-| **特点** | 使用 MobX `observable` 做响应式数据绑定；通过 `dirtySet` + `TriggerMgr` 做属性变更通知 |
-| **关联子系统** | 建筑系统、士兵系统（征兵/伤兵/预备役）、科技系统（督造司）、内政官系统、民居/市政厅、赌场(酒坊)、等级锁控制 |
+`UserInternalAffair` 是客户端**内政系统**的核心管理类，负责管理城市建造、士兵（征兵/治疗/预备兵）、科技研究、内政官委任、资源存储、民居分配、市政厅、赌场（酒坊）、行商等所有与城市发展相关的业务逻辑。
 
 ---
 
-## 1. 核心数据结构
+## 类结构
 
-### 1.1 建筑系统
+### 1. `UserInternalAffair` 主类
 
-| 字段 | 类型 | 说明 |
+#### 1.1 核心数据
+
+##### 建造系统
+| 属性 | 类型 | 说明 |
 |------|------|------|
-| `typeToLevel` | `Map<number, number>` | 建筑 type → 当前等级 |
+| `typeToLevel` | `Map<number, number>` | 建筑类型 → 当前等级 |
 | `grade` | `number` | 当前建造阶数（= 城主府等级） |
-| `buildingTypeMap` | `Map<number, IConstructBuilding>` | type → 建造信息（正在建造的） |
-| `buildingList` | `IConstructBuilding[]` | 当前建造队列（含空闲位） |
-| `type_level_config` | `Map<number, Map<number, __building_temp>>` | type → level → 建筑配置（预生成缓存） |
-| `curBuildingQueueEmptyIdx` | `getter` | 当前建造队列中最近的空闲位置索引 |
-| `baseBuildingQueueCount` | `number` | 基础队列数量（默认 3） |
-| `maxExtraQueue` | `number` | 最大额外队列数 |
+| `buildingTypeMap` | `Map<number, IConstructBuilding>` | 建筑类型 → 建造中信息 |
+| `buildingList` | `IConstructBuilding[]` | 当前建造队列（某项可能为空表示空闲位置） |
+| `type_level_config` | `Map<number, Map<number, __building_temp>>` | 建筑类型 → 等级 → 配置 |
+| `baseBuildingQueueCount` | `number` | 基础建造队列数量（默认3） |
 | `baseExtraQueueCost` | `number` | 额外队列基础花费 |
 | `extraQueueFactor` | `number` | 额外队列花费增长比率 |
-| `extraQueueCostId` | `number` | 额外队列花费物品 id |
+| `maxExtraQueue` | `number` | 最大额外队列数量 |
+| `extraQueueCostId` | `number` | 额外队列花费物品ID |
+| `curBuildingQueueEmptyIdx` | `get: number` | 当前最近空闲队列位置 |
 
-### 1.2 士兵系统
-
-| 字段 | 类型 | 说明 |
+##### 士兵系统
+| 属性 | 类型 | 说明 |
 |------|------|------|
-| `type_subType_LevelSoldier` | `Map<SoldierType, Map<number, number>>` | 兵种大类 → 子类 → 等级 |
-| `type_subType_level_soldierConfig` | `Map<number, Map<number, Map<number, __soldier_temp>>>` | career → sub_career → level → 配置（预生成） |
-| `reserveSoldierNum` | `number` @observable | 预备兵数量 |
-| `conscriptionCycle` | `ICycle` @observable | 征兵周期数据 |
-| `isAutoConscription` | `boolean` @observable | 是否自动征兵 |
-| `healCycle` | `ICycle` | 伤兵治疗周期数据 |
-| `reservistId` | `number` | 预备兵物品 id（11001） |
+| `type_subType_LevelSoldier` | `Map<SoldierType, Map<number, number>>` | 士兵类型 → 子类型 → 等级 |
+| `type_subType_level_soldierConfig` | `Map<number, Map<number, Map<number, __soldier_temp>>>` | 士兵配置索引 |
+| `reserveSoldierNum` | `number` (observable) | 预备兵数量 |
+| `reservistId` | `number` | 预备兵物品ID（11001） |
+| `isAutoConscription` | `boolean` (observable) | 是否自动征兵 |
+| `conscriptionCycle` | `ICycle` (observable) | 征兵周期数据 |
+| `conscriptionTokenLastCalTime` | `number` | 征兵令上次计算时间 |
 
-#### 征兵相关计算
+##### 伤兵系统
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `healCycle` | `ICycle` | 伤兵治疗周期 |
+| `totalWoundedSoldier` | `get: number` | 伤兵总数 |
+| `healedSoldier` | `get: number` | 已治疗士兵数（本轮） |
 
-| getter / 方法 | 说明 |
-|------|------|
-| `remainConscriptionSoldier` | 征兵队列剩余可征数 |
-| `totalConscriptionSoldier` | 本次征兵总数量 |
-| `GetConscriptedSoldier()` | 当前已征兵数量（已产出） |
-| `GetConscriptionEndTime()` | 征兵结束时间戳 |
-| `GetSoldierConscriptionSingleTime()` | 单兵征兵耗时（ms） |
-| `GetSoldierConscriptionCostConfig()` | 获取征兵消耗配置 |
-
-#### 伤兵相关计算
-
-| getter / 方法 | 说明 |
-|------|------|
-| `totalWoundedSoldier` | 伤兵总数 |
-| `healedSoldier` | 当前轮次已治疗总数 |
-| `GetHealedSoldierThisRound()` | 包含已加入预备兵的累计治疗量 |
-| `GetHealedSoldier()` | 不含已加入预备兵的已治疗量 |
-| `GetWoundedNum()` | 剩余未治疗伤兵数 |
-| `GetHealEndTime()` | 治疗完成时间 |
-| `GetSoldierHealCostConfig()` | 获取伤兵治疗消耗配置 |
-
-#### 预备役相关
-
-| 方法 | 说明 |
-|------|------|
-| `GetReserveSoldierOccupiedNum()` | 预备兵占用数（当前已使用 + 伤兵 + 征兵中） |
-| `GetCurReserveSoldierOccupiedNumWithoutConscription()` | 不计征兵的预备兵占用数 |
-| `GetCurrentSoldierCanUseNum()` | 当前可用预备兵数（预备兵存量 + 已治疗 + 已征兵） |
-| `GetTotalSoldierNum()` | 总兵力（预备兵 + 伤兵 + 征兵中） |
-| `GetMaxReserveSoldierNum()` | 最大预备兵上限 |
-
-### 1.3 科技系统（督造司/研究院）
-
-| 字段 | 类型 | 说明 |
+##### 科技系统
+| 属性 | 类型 | 说明 |
 |------|------|------|
 | `groupToCurConfigTech` | `Map<number, __building_tech_temp>` | 科技组 → 当前科技配置 |
-| `groupLevelToConfigTech` | `Map<number, Map<number, __building_tech_temp>>` | group → level → 配置（预生成） |
-| `technologyHouse` | `ITechnologyHouse` @observable | 科技所数据 |
-| `groupToGetDesFunc` | `Map<number, Function>` | 科技组 → 特殊描述生成函数（自定义处理） |
+| `groupLevelToConfigTech` | `Map<number, Map<number, __building_tech_temp>>` | 科技组 → 等级 → 配置 |
+| `technologyHouse` | `ITechnologyHouse` (observable) | 科技所数据 |
 
-### 1.4 内政官系统
-
-| 字段 | 类型 | 说明 |
+##### 内政官
+| 属性 | 类型 | 说明 |
 |------|------|------|
-| `officerIDToOfficer` | `Map<number, IOfficial>` | 官员 id → 官员数据 |
-| `uuidToOfficer` | `Map<string, IOfficial>` | uuid → 官员数据 |
-| `configIdToOfficer` | `Map<number, IOfficial>` | 配置 id → 官员数据 |
-| `GetEffectValue()` | method | 计算执政官内政影响值 |
-| `GetEffectValueDisplay()` | method | 影响值显示用（含百分比处理） |
-| `CheckHeroAppointment()` | method | 检测同类型英雄是否已被派遣 |
+| `officerIDToOfficer` | `Map<number, IOfficial>` | 配置ID → 内政官 |
+| `uuidToOfficer` | `Map<string, IOfficial>` | uuid → 内政官 |
+| `configIdToOfficer` | `Map<number, IOfficial>` | 英雄配置ID → 内政官 |
 
-### 1.5 民居/市政厅/资源
-
-| 字段 | 类型 | 说明 |
+##### 民居/资源
+| 属性 | 类型 | 说明 |
 |------|------|------|
-| `dwellingPlan` | `Map<number, number>` | 民居资源分配：resourceId → 分配数量 |
+| `dwellingPlan` | `Map<number, number>` | 资源ID → 分配居民数量 |
 | `planType` | `number` | 分配方案类型 |
-| `municipalOffice` | `ICityHall` @observable | 市政厅数据 |
-| `maxTaxTimes` | `number` | 铸贝次数上限 |
+| `resourceUpdater` | `ResourceUpdater` | 资源更新器 |
+| `resourceCalcTime` | `Map<PIAResourceCalcTime, Long>` | 资源计算时间 |
 
-**资源上限计算**：
-- `GetMaxStorage(id)` → 根据资源类型返回对应存储上限
-  - 食物/木材/金属/石材分别对应各自的 `ServerProperty.Limit`
-  - 基础仓库通过 `PIABuildingType.wareHouse` 配置 + 配置表 5095
-- `GetCopperOut()` → 征税铜贝产出（依赖 `ServerProperty.Copper_p`）
-- `GetCopperStoryOut()` → 演义加成铜贝
+##### 市政厅/铸币
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `municipalOffice` | `CityHall` (observable) | 市政厅数据 |
+| `maxTaxTimes` | `number` (observable) | 最大铸币次数 |
 
-### 1.6 酒坊（赌场/继承）
-
-| 字段 | 类型 | 说明 |
+##### 酒坊（赌场/继承）
+| 属性 | 类型 | 说明 |
 |------|------|------|
 | `gamblingData` | `IGamblingData` | 赌场数据 |
-| `inheritData` | `IInheritData` | 继承英雄数据 |
-| `GetTodayGamblingTimes()` | method | 获取今日已抽次数（以凌晨 3 点为界） |
+| `inheritData` | `IInheritData` | 英雄继承数据 |
 
-### 1.7 其他字段
+##### 等级锁系统
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `levelLockMap` | `Map<BuildingLockLevelKind, { level, buildingIds[] }[]>` | 功能类型 → 等级锁列表 |
+| `dynamicProperties` | `Map<string, Long>` | 服务器动态属性 |
+| `detailInfo` | `ISCSyncCityDetailInfo` | 缓存的内城详情 |
+| `userShopInfo` | `IUserShopInfo` | 行商信息 |
 
-| 字段 | 说明 |
-|------|------|
-| `currentCityData` | `UserInternalAffairCurrentCityData` 当前城市信息 |
-| `resourceUpdater` | `ResourceUpdater` 资源更新器 |
-| `dynamicProperties` | 服务端动态属性 Map |
-| `resourceCalcTime` | 资源计算时间戳 Map |
-| `detailInfo` | 缓存的内城详细信息 |
-| `userShopInfo` | 行商信息 |
-| `conscriptionTokenLastCalTime` | 征兵令上次结算时间 |
-| 锁定模型路径 | `normalLockedModelPath`、`desertLockedModelPath`、`snowLockedModelPath` |
+##### UI 辅助
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `typeToGetDesFunc` | `Map<number, Function>` | 建筑类型 → 特殊描述函数 |
+| `groupToGetDesFunc` | `Map<number, Function>` | 科技组 → 特殊描述函数 |
+| `normalLockedModelPath` | `string` | 普通资源点锁路径 |
+| `desertLockedModelPath` | `string` | 沙漠资源点锁路径 |
+| `snowLockedModelPath` | `string` | 雪地资源点锁路径 |
+| `lockTipsStr` | `string` | 解锁提示文本 |
 
----
+#### 1.2 主要方法
 
-## 2. 关键方法
+##### 初始化
+- `Init()` — 初始化所有配置映射、等级锁、基础参数
+- `DeInit()` — 清理士兵等级数据
+- `GenerateTypeToConfigMap()` — 生成建筑类型→等级→配置映射
+- `GenerateTypeToConfigSoldierMap()` — 生成士兵类型→子类型→等级→配置映射
+- `InitGroupToConfigTech()` — 初始化科技组配置映射
+- `GenerateFunctionLevelLockMap()` — 生成功能等级锁映射
 
-### 2.1 初始化与配置生成
+##### 建造系统
+- `SetBuildingInfo(buildings: IConstructBuilding[])` — 设置建造信息（初始化时调用）
+- `AddOrUpdateBuilding(type, data)` — 添加或更新建造队列中的建筑
+- `GetBuildCost(): number` — 获取额外队列建造消耗（超上限返回-1）
+- `CheckIsExtraBuildingQueue(type): boolean` — 检查建筑是否在额外队列中
+- `GetEffectedBuildingTime(originTime): number` — 计算受加成后的建造时间
+- `GetCurLevelConfig(type): __building_temp` — 获取当前等级建筑配置
+- `GetMaxLevelConfig(type): __building_temp` — 获取最大等级建筑配置
+- `CanUpgradeBuilding(type: PIABuildingType): CanUpgradeBuildingResult` — 判断建筑能否升级/建造，返回结果包含 `canUpgrade` 布尔标志和 `reason`（具体不可升级原因）
+  - 检查顺序：配置是否存在 → 是否满级 → 是否建造中 → 前置条件（建筑等级/主线任务/赛季任务）→ 资源是否充足
+  - 前置配置检查 `pre_request`/`pre_request_type`，资源消耗应用 `GetBuildingCostReduceRate()` 减免
 
-| 方法 | 说明 |
-|------|------|
-| `Init()` | 初始化：生成等级锁、建筑配置、兵种配置、科技配置；读取 Property 表常量 |
-| `DeInit()` | 反初始化：清空兵种等级 |
-| `GenerateTypeToConfigMap()` | 预生成 `type_level_config`：type → level → config |
-| `GenerateTypeToConfigSoldierMap()` | 预生成 `type_subType_level_soldierConfig` |
-| `InitGroupToConfigTech()` | 预生成 `groupLevelToConfigTech` 科技配置 Map |
+##### 士兵系统
+- `GetSoldierConfig(type, subType?, level?)` — 获取士兵配置
+- `GetSoldierLevel(type, subType?): number` — 获取士兵当前等级
+- `SetSoldierLevel(type, level, subType?)` — 设置士兵等级
+- `GetSoldierMaxStage(type): number` — 获取士兵最大阶段
+- `GetSoldierConscriptionSingleTime(): number` — 获取单次征兵时间
+- `GetSoldierConscriptionCostConfig()` — 获取征兵消耗配置（按优先级）
+- `GetSoldierHealCostConfig()` — 获取伤兵治疗消耗配置（按优先级）
+- `GetValidSoldierConfigs()` — 获取所有已解锁的非特殊兵种配置
+- `IsSoldierUnlocked(soldierType): boolean` — 检查兵种是否已解锁
+- `CheckCatapultValid(): boolean` — 检查投石车是否可用
 
-### 2.2 等级锁系统
+##### 伤兵系统
+- `GetHealedSoldierThisRound(): number` — 本轮已治疗总数（包含已加入预备兵部分）
+- `GetHealedSoldier(): number` — 已治疗但未加入预备兵的总数
+- `GetWoundedNum(): number` — 当前伤兵数量
+- `GetHealEndTime(): number` — 预计治疗结束时间
 
-用于控制玩家内政等级对武将等级上限、兵种等级上限、天赋上限、技能上限的限制。
+##### 预备兵
+- `GetReserveSoldierOccupiedNum(): number` — 预备兵总占用（可用数 + 伤兵 + 征兵中）
+- `GetCurReserveSoldierOccupiedNumWithoutConscription(): number` — 预备兵占用（不含征兵）
+- `GetCurrentSoldierCanUseNum(): number` — 当前可用士兵数
+- `GetTotalSoldierNum(): number` — 总兵力（预备兵 + 伤兵 + 征兵中）
+- `GetConscriptedSoldier(): number` — 已征募士兵数
+- `GetMaxReserveSoldierNum(): number` — 预备兵上限
+- `GetConscriptionEndTime(): number` — 征兵结束时间
 
-| 方法 | 说明 |
-|------|------|
-| `GenerateFunctionLevelLockMap()` | 从建筑配置的 `lock`/`param` 字段生成 `levelLockMap` |
-| `IsFunctionLevelLimited(kind, level)` | 判断指定等级是否因内政建筑限制无法到达；返回 `{ isLimited, limitBuildingId }` |
-| `GetFunctionLevelLimit(kind)` | 获取由内政建筑限制的最高等级 |
+##### 等级锁系统
+- `IsFunctionLevelLimited(kind, level): { isLimited, limitBuildingId? }` — 判断等级是否受限，受限时返回需要解锁的建筑
+- `GetFunctionLevelLimit(kind): number | null` — 获取功能等级上限
 
-**等级锁类型**（`BuildingLockLevelKind`）：
+##### 建筑描述
+- `GetUpgradeDescription(configId, nextConfigId?): [string, string, string][]` — 获取建筑升级描述（属性名、当前值、下值）
+- `AddUnlockDescription(result, currentConfig, nextConfig)` — 添加解锁内容描述
+- `GetUpgradeDescriptionTech(configId, showNext?): [string, string, string][]` — 获取科技升级描述
 
-| 枚举值 | 值 | 说明 |
-|--------|-----|------|
-| `Hero` | 1 | 武将等级上限 |
-| `Soldier` | 2 | 兵种等级上限 |
-| `HeroTalent` | 3 | 武将天赋上限 |
-| `HeroSkill` | 4 | 武将技能上限 |
+##### 资源/存储
+- `GetMaxStorage(id: number): number` — 获取指定资源存储上限
+- `GetCopperOut(): number` — 获取铸币产出速率
+- `GetCopperStoryOut(): number` — 获取演义铸币加成
 
-**逻辑说明**：
-1. 遍历所有建筑的 `lock[i]` / `param[i]` 字段
-2. 对每个 `lockKind`，按等级排序存入 `levelLockMap`
-3. `IsFunctionLevelLimited` 判断：若当前等级 `< 解锁要求的建筑等级` 则受限
-4. `FunctionLockGuard` 函数确保 0 级建筑也补上默认锁数据
+##### 内政官
+- `GetEffectValueDisplay(hero, officer): number` — 获取内政官效果显示值
+- `GetEffectValue(hero, officer): number` — 获取内政官影响力数值
+- `CheckHeroAppointment(uuid: Long): boolean` — 检查同类型英雄是否已被派遣
 
-### 2.3 建筑相关
+##### 赌场
+- `GetTodayGamblingTimes(): number` — 获取今日赌场次数（以凌晨3点为分界）
+- `SetGamblingData(times, time)` — 设置赌场数据
 
-| 方法 | 说明 |
-|------|------|
-| `SetBuildingInfo(buildings)` | 初始化设置建造队列 + 更新 buildingTypeMap |
-| `AddOrUpdateBuilding(type, data)` | 添加或更新建造信息 |
-| `GetBuildCost()` | 计算额外建造队列消耗；超出最大返回 -1 |
-| `CheckIsExtraBuildingQueue(type)` | 检查某建筑是否在额外建造队列中 |
-| `GetEffectedBuildingTime(originTime)` | 计算受属性加成的建造时间 |
-| `GetCurLevelConfig(type)` | 获取当前等级的建筑配置 |
-| `GetMaxLevelConfig(type)` | 获取最高等级的建筑配置 |
-| `ShowUnlockTips(name, type)` | 显示解锁提示（锁住时弹窗） |
-| `GetUnlockTips(name, type)` | 获取解锁提示数据（不弹窗，返回结构体） |
+##### 解锁提示
+- `ShowUnlockTips(name, type)` — 显示建筑解锁提示
+- `GetUnlockTips(name, type)` — 获取解锁提示数据
 
-### 2.4 士兵相关
+##### 城市检测
+- `IsGuildInitCity(cityId): boolean` — 是否联盟初始城
+- `IsCampMainCity(cityId): boolean` — 是否势力主城
+- `IsMultiSettlementCity(cityId): boolean` — 是否多用户城市（联盟初始城或势力主城）
+- `FilterDetailInfo(data: ISettlementInfo[])` — 筛选重复玩家数据，保留搬迁时间最近的
 
-| 方法 | 说明 |
-|------|------|
-| `GetSoldierConfig(type, subType, level?)` | 获取兵种配置 |
-| `GetSoldierLevel(type, subType)` | 获取兵种当前等级 |
-| `SetSoldierLevel(type, level, subType)` | 设置兵种等级 |
-| `GetSoldierMaxStage(type)` | 获取兵种最大阶段 |
-| `GetValidSoldierConfigs()` | 获取所有已解锁可用的兵种配置 |
-| `IsSoldierUnlocked(soldierType)` | 判断兵种是否已解锁 |
-| `CheckCatapultValid()` | 判断投石车是否有效 |
+##### 编队信息
+- `GetMaxTeamCount(): number` — 最大编队数（5）
+- `GetMaxHeroCount(teamIdx): number` — 每队最大英雄数（3）
+- `Get3HeroTeamCount(): number` — 3英雄编队数量（5）
 
-### 2.5 升级描述生成
+##### 消息/脏标记
+- `SetProperty(propertyName, value, update?)` — 设置属性并标记脏数据
+- `UpdateProperty(propertyName)` — 标记属性为脏
+- `UpdateDirty()` — 触发脏数据更新事件
 
-核心方法：`GetUpgradeDescription(configId, nextConfigId?)`
+##### 已移除功能
+- `GetSoldierUpgradeLevelBuildingInfo(): [__building_temp, number]` — 已移除（所有士兵升阶建筑已不再使用）
 
-**返回值格式**：`[string, string, string][]` = `[属性文字描述, 当前值, 下一级值]`
-
-**流程**：
-1. 获取当前建筑配置和下一级配置
-2. 读取 `effect_text[i]` / `effect_info[i]` / `effect_unit[i]` 构建描述
-3. 调用 `AddUnlockDescription()` 添加解锁内容描述
-4. 若 level === 0，当前值为下一级值，下一级值置空
-
-**解锁内容描述逻辑**（`AddUnlockDescription`）：
-- 遍历当前级和下一级的 `lock`/`param`，找出**新增的解锁内容**
-- 对 `lockType === 3`（天赋）特殊处理：通过 `GetTalentColorName()` 获取颜色名称对比
-- 其他类型直接显示数值变化
-
-**配套私有方法**：
-- `GetAllUnlocksForBuilding(buildingConfig)`：收集该建筑从 1 级到当前级的所有解锁内容
-- `GetUnlockTitle(lockType)`：解锁标题映射
-- `GetUnlockValue(lockType, param)`：解锁数值显示
-- `GetTalentColorName(groupId)`：根据天赋组 id 获取颜色名（通过追踪天赋链末尾节点）
-
-### 2.6 科技升级描述
-
-| 方法 | 说明 |
-|------|------|
-| `GetUpgradeDescriptionTech(configId, showNext)` | 科技升级描述，同建筑类似，优先检查 `groupToGetDesFunc` 自定义函数 |
-
-### 2.7 其他工具方法
-
-| 方法 | 说明 |
-|------|------|
-| `GetServerProperty(name)` | 获取服务端属性 |
-| `GetPlayerForceValue()` | 获取玩家战力值 |
-| `GetMaxTeamCount()` / `GetMaxHeroCount()` / `Get3HeroTeamCount()` | 编队/英雄数量上限 |
-| `IsGuildInitCity(cityId)` | 是否是联盟初始城 |
-| `IsCampMainCity(cityId)` | 是否是势力主城 |
-| `IsMultiSettlementCity(cityId)` | 是否是多用户城市 |
-| `FilterDetailInfo(data)` | 过滤搬迁重复的玩家聚落数据（保留时间最近的） |
-| `GetSoldierUpgradeLevelBuildingInfo()` | 已移除，返回 null |
-
----
-
-## 3. 枚举定义
-
-### 3.1 PIABuildingType — 内政建筑类型
-
-| 枚举 | 值 | 说明 |
-|------|-----|------|
-| `mainCastle` | 101 | 主城（提高统率值） |
-| `mill` | 121 | 磨坊（食物产出） |
-| `loggingCamp` | 122 | 伐木场（木材产出） |
-| `quarry` | 123 | 石料厂（石材产出） |
-| `smeltingPlant` | 124 | 冶炼厂（金属产出） |
-| `wareHouse` | 103 | 仓库（资源储存上限） |
-| `drillGround` | 105 | 校场（部队战斗力/编队） |
-| `infantryBattalion` | 131 | 步兵营 |
-| `cavalryBattalion` | 132 | 骑兵营 |
-| `pikemanBattalion` | 133 | 枪兵营 |
-| `bowmanBattalion` | 134 | 弓兵营（训练速度加成） |
-| `municipalOffice` | 109 | 市政所（铸贝） |
-| `researchInstitute` | 110 | 研究院/督造司（科技） |
-| `weaponsFactory` | 112 | 武器厂（部队攻击） |
-| `armorFactory` | 113 | 盔甲厂（部队防御） |
-| `militaryInstitute` | 114 | 军事学院（部队智力） |
-| `trainingGround` | 115 | 操练场（部队攻速） |
-| `conscriptionBattalion` | 141 | 募兵营 |
-| `qin_tian_jian` | 144 | 钦天监 |
-| `hu_ji_suo` | 147 | 户籍所 |
-| `yan_wu_chang` | 148 | 演武场 |
-| `smithy` | 153 | 铁匠铺（锻造装备） |
-
-### 3.2 BuildingLockLevelKind — 等级锁类型
-
-| 枚举 | 值 | 说明 |
-|------|-----|------|
-| `Hero` | 1 | 武将等级上限 |
-| `Soldier` | 2 | 兵种等级上限 |
-| `HeroTalent` | 3 | 武将天赋上限 |
-| `HeroSkill` | 4 | 武将技能上限 |
-
-### 3.3 PIAProperties — 属性变更通知枚举
-
-用于 `UpdateProperty()` 时的属性名标记，触发 UI 更新。
-
-| 枚举 | 值 | 说明 |
-|------|-----|------|
-| `typeToLevel` | "typeToLevel" | 建筑等级变更 |
-| `curBuildingQueueCount` | "curBuildingQueueCount" | 建造队列数量变更 |
-| `buildingTypeMap` | "buildingTypeMap" | 建造信息变更 |
-| `type_subType_levelSoldier` | "type_subType_levelSoldier" | 兵种等级变更 |
-| `tagGroupToConfig` | "tagGroupToConfig" | 标签组配置变更 |
-| `groupToCurConfigTech` | "groupToCurConfigTech" | 科技配置变更 |
-| `officerIDToOfficer` | "officerIDToOfficer" | 内政官变更（含 uuid） |
-| `dwellingPlan` | "dwellingPlan" | 民居分配方案变更 |
-| `municipalOffice` | "municipalOffice" | 市政厅数据变更 |
-| `technologyHouse` | "technologyHouse" | 科技所数据变更 |
-| `gamblingData` | "gamblingData" | 赌场数据变更 |
-
-### 3.4 PropertyConfigEnum — Property 表常量枚举
-
-| 枚举 | 值 | 说明 |
-|------|-----|------|
-| `extraQueueFactor` | 5093 | 额外队列花费增长率 |
-| `extraQueueBase` | 5092 | 额外队列基础花费（格式: "itemId\|cost"） |
-| `maxExtraQueue` | 5094 | 最大额外队列数量 |
-| `baseQueueCount` | 5091 | 基础建造队列数 |
-| `maxTaxTime` | 5223 | 铸贝次数上限 |
+##### 辅助
+- `GetPlayerForceValue(): number` — 获取玩家战力值
+- `GetServerProperty(name): number` — 获取服务器属性值
+- `GetTalentColorName(groupId): string` — 根据天赋组ID获取颜色名称
+- `GetAllUnlocksForBuilding(buildingConfig): Map<number, number>` — 获取建筑所有解锁内容
+- `GetUnlockTitle(lockType): string` — 获取解锁标题
+- `GetUnlockValue(lockType, param): string` — 获取解锁数值显示
+- `GetLevel1TechConfig(group)` — 获取科技组1级配置
 
 ---
 
-## 4. 数据流与变更通知机制
+### 2. 辅助类型
 
-### 4.1 属性变更通知
+#### 2.1 枚举
 
 ```typescript
-private dirtySet: Set<String> = new Set()
-
-SetProperty(propertyName: string, value, update = true) {
-    this[propertyName] = value
-    this.dirtySet.add(propertyName)
-    if (update) this.UpdateDirty()
+/** 内政属性枚举 - 用于脏标记更新 */
+enum PIAProperties {
+    typeToLevel = "typeToLevel",                       // 建筑等级
+    curBuildingQueueCount = "curBuildingQueueCount",    // 建造队列数
+    buildingTypeMap = "buildingTypeMap",                // 建造中建筑
+    type_subType_levelSoldier = "type_subType_levelSoldier", // 士兵等级
+    tagGroupToConfig = "tagGroupToConfig",
+    groupToCurConfigTech = "groupToCurConfigTech",      // 科技配置
+    officerIDToOfficer = "officerIDToOfficer",          // 内政官（含uuidToOfficer）
+    dwellingPlan = "dwellingPlan",                      // 民居分配
+    municipalOffice = "municipalOffice",                // 市政厅
+    technologyHouse = "technologyHouse",                // 科技所
+    gamblingData = "gamblingData",                      // 赌场
 }
 
-UpdateProperty(propertyName: string) {
-    this.dirtySet.add(propertyName)
-    this.UpdateDirty()
+/** 内政建筑类型枚举 */
+enum PIABuildingType {
+    mainCastle = 101,           // 主城（城主府）：提高最大统率值
+    mill = 121,                 // 磨坊：增加食物产出
+    loggingCamp = 122,          // 伐木场：增加木材产出
+    quarry = 123,               // 石料厂：增加石材产出
+    smeltingPlant = 124,        // 冶炼厂：增加金属产出
+    wareHouse = 103,            // 仓库：增加资源存储上限
+    drillGround = 105,          // 校场：部队战斗力，预备役
+    infantryBattalion = 131,    // 步兵营
+    cavalryBattalion = 132,     // 骑兵营
+    pikemanBattalion = 133,     // 枪兵营
+    bowmanBattalion = 134,      // 弓兵营（训练速度加成）
+    municipalOffice = 109,      // 市政所（市政厅）：铜贝产出
+    researchInstitute = 110,    // 研究院（督造司）：科技研究
+    weaponsFactory = 112,       // 武器厂：部队攻击力
+    armorFactory = 113,         // 盔甲厂：部队防御力
+    militaryInstitute = 114,    // 军事学院：部队智力
+    trainingGround = 115,       // 操练场：部队攻击速度
+    conscriptionBattalion = 141,// 募兵营
+    qin_tian_jian = 144,        // 钦天监
+    hu_ji_suo = 147,            // 户籍所
+    yan_wu_chang = 148,         // 演武场
+    smithy = 153,               // 铁匠铺：锻造装备
 }
 
-UpdateDirty() {
-    if (this.dirtySet.size > 0) {
-        TriggerMgr.Trigger(E_TriggerType.on_personal_internal_affair_data_update, this.dirtySet)
-        this.dirtySet.clear()
-    }
+/** 功能等级锁类型 */
+enum BuildingLockLevelKind {
+    Hero = 1,       // 武将等级上限
+    Soldier = 2,    // 兵种等级上限
+    HeroTalent = 3, // 武将天赋上限
+    HeroSkill = 4,  // 武将技能上限
 }
 ```
 
-**流程**：
-1. 数据变更后调用 `SetProperty()` 或 `UpdateProperty()` 标记属性
-2. `UpdateDirty()` 批量触发 `TriggerMgr`
-3. UI 监听 `E_TriggerType.on_personal_internal_affair_data_update` 响应刷新
+#### 2.2 配置枚举
+```typescript
+enum PropertyConfigEnum {
+    extraQueueFactor = 5093,   // 额外队列花费增长比率
+    extraQueueBase = 5092,     // 额外队列基础花费
+    maxExtraQueue = 5094,      // 最大额外队列数量
+    baseQueueCount = 5091,     // 基础队列数量
+    maxTaxTime = 5223,         // 最大铸币次数
+}
+```
 
-### 4.2 相关 Trigger 事件
-
-- `E_TriggerType.on_personal_internal_affair_data_update` — 内政数据更新（携 dirtySet）
-- `E_TriggerType.on_personal_internal_affair_building_level_change` — 建筑等级变更（携 type）
-
----
-
-## 5. 已废弃/移除功能
-
-| 功能 | 说明 |
-|------|------|
-| `typeToJumpFunc` | 跳转函数映射（已注释） |
-| `typeToGetDesFunc` | 特殊描述函数映射（原本用于自定义建筑描述，已注释 `RegisterDescriptionGetFunc`) |
-| `RemoveBuilding()` | 移除建筑（已注释） |
-| `FinishBuilding()` | 完成建造（已注释） |
-| `GetSoldierUpgradeLevelBuildingInfo()` | 士兵升阶建筑（已移除，返回 null） |
-| 旧版 `GetUpgradeDescription()` | 原使用 `param1/param2` 参数名，新版改为 `effect_info/effect_unit` |
+#### 2.3 辅助函数
+```typescript
+/** 等级锁守卫函数：补全缺失的锁类型默认值 */
+function FunctionLockGuard(locks: BuildingLockLevelKind[], params: number[])
+// 自动补全 Hero(1)、Soldier(2)、HeroTalent(3)、HeroSkill(4) 的默认值
+```
 
 ---
 
-## 6. 依赖的外部模块
+## 业务逻辑总结
 
-| 模块 | 用途 |
-|------|------|
-| `cfg.building` | 建筑配置表 |
-| `cfg.building_tech` | 科技配置表 |
-| `cfg.soldier` | 士兵配置表 |
-| `cfg.soldier_cost` | 士兵消耗配置表 |
-| `cfg.policy` | 政策/内政官配置表 |
-| `cfg.property` | 系统属性配置表 |
-| `cfg.hero_talent` | 英雄天赋配置表（GetTalentColorName） |
-| `cfg.camp` | 势力配置表 |
-| `cfg.story` | 演义配置表 |
-| `Global.UserItem` | 物品周期计算 |
-| `Global.UserTeam` | 部队数据 |
-| `Global.UserServerProperty` | 服务端属性/属性加成 |
-| `Global.UserGuild` | 联盟数据 |
-| `Global.UserHero` | 英雄数据 |
-| `Global.UserStoryWorld` | 演义世界数据 |
-| `TriggerMgr` | 事件触发 |
-| `ResourceUpdater` | 资源更新器 |
+### 建造系统
+1. 玩家通过 `buildingList`（建造队列）进行建筑升级
+2. 每个建筑类型（type）对应一个等级（`typeToLevel`）
+3. 基础建造队列为3个，可通过花费道具增加额外队列（`GetBuildCost`）
+4. 建造时间受服务器属性 `build_time` 加速（`GetEffectedBuildingTime`）
+5. 建筑解锁条件为前置建筑类型等级达到要求（`pre_request`/`pre_request_type`）
+
+### 等级锁系统
+- 城主府等级决定功能解锁上限（武将等级、兵种等级、天赋上限、技能上限）
+- `GenerateFunctionLevelLockMap()` 从建筑配置表生成锁映射
+- `IsFunctionLevelLimited()` 判断指定等级是否受限
+- `GetFunctionLevelLimit()` 获取当前最高可达等级
+
+### 士兵系统
+- 士兵分为多个类型（步兵、骑兵、枪兵、弓兵、投石车等）
+- 每个兵种有子类型和等级（`type_subType_LevelSoldier`）
+- 征兵：通过 `conscriptionCycle` 管理征兵周期，可自动征兵
+- 治疗：通过 `healCycle` 管理伤兵治疗周期
+- 预备兵：`reserveSoldierNum` + 治疗中 + 征兵中 = 总占用
+- 消耗配置按优先级选择（`GetSoldierConscriptionCostConfig`/`GetSoldierHealCostConfig`）
+
+### 科技系统
+- 科技按组（`group`）划分，每组一个当前等级
+- `technologyHouse` 存储科技所整体数据
+- 科技升级描述通过 `GetUpgradeDescriptionTech` 获取
+- 可设置特殊处理函数（`groupToGetDesFunc`）
+
+### 内政官
+- 英雄可被委任为内政官，提供属性加成
+- 通过 `officerIDToOfficer`/`uuidToOfficer`/`configIdToOfficer` 三种索引查询
+- `GetEffectValue` 计算内政官对资源产出的影响值
+
+### 资源存储
+- `GetMaxStorage` 按资源类型（食物/木材/金属/石材）返回存储上限
+- 存储上限受建筑等级和服务器属性影响
+
+### 建筑描述（UI）
+- `GetUpgradeDescription` 生成 [属性名, 当前值, 下一级值] 三元组
+- 支持特殊处理函数覆盖默认行为
+- 自动处理0级建筑的描述（当前值 = 下一级值）
+- `AddUnlockDescription` 在升级描述中嵌入解锁内容：武将等级上限、兵种等级上限、武将天赋上限（带颜色名）
+
+### 脏标记更新
+- `dirtySet` 记录变更的属性名
+- `UpdateDirty()` 通过触发 `E_TriggerType.on_personal_internal_affair_data_update` 事件通知UI更新
+
+### 赌场（酒坊）
+- `GetTodayGamblingTimes` 计算今日可赌博次数
+- 以凌晨3点为日切分界点
+- 通过 `gamblingData` 存储赌博次数和上次时间
+
+---
+
+## 关联模块
+- **UserHero** — 内政官系统调用 `UserHero.GetHeroFinalProp` 计算效果值
+- **UserTeam** — 获取当前部队士兵占用（`GetCurrentSoldierCanUseNum`）
+- **UserServerProperty** — 获取服务器属性（建造时间、资源存储上限等）
+- **UserItem** — 计算周期物品数量（征兵、治疗进度）
+- **Global.UserStoryWorld** — 演义铸币加成
+- **Global.UserGuild** — 联盟初始城检测
+- **Global.ConditionGuideMgr** — 引导条件触发
+- **cfg.building / cfg.soldier / cfg.building_tech / cfg.soldier_cost** — 配置表
