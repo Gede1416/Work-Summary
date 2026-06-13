@@ -1,0 +1,94 @@
+<mxfile host="Electron">
+  <diagram name="第 1 页" id="ha4sxFEbVEuw8tfsrDpi">
+    <mxGraphModel dx="1178" dy="708" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="0Fdsyet2t28CBkdKiNku-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="战斗开始" vertex="1">
+          <mxGeometry height="60" width="120" x="294" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="战斗地图中&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;的&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;敌方数据&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="50" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="我方队伍数据" vertex="1">
+          <mxGeometry height="60" width="120" x="294" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="主城提升" vertex="1">
+          <mxGeometry height="60" width="120" x="540" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="战斗结束" vertex="1">
+          <mxGeometry height="60" width="120" x="294" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="平均等级" vertex="1">
+          <mxGeometry height="30" width="70" x="75" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="平均等级" vertex="1">
+          <mxGeometry height="30" width="70" x="319" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="拥有英雄数据" vertex="1">
+          <mxGeometry height="60" width="120" x="530" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="最高品质" vertex="1">
+          <mxGeometry height="30" width="70" x="319" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="最高品质" vertex="1">
+          <mxGeometry height="30" width="70" x="555" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-13" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="上阵兵种数" vertex="1">
+          <mxGeometry height="30" width="70" x="319" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-14" edge="1" parent="1" source="0Fdsyet2t28CBkdKiNku-1" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="0Fdsyet2t28CBkdKiNku-3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="410" y="340" as="sourcePoint" />
+            <mxPoint x="460" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-15" edge="1" parent="1" source="0Fdsyet2t28CBkdKiNku-1" style="endArrow=classic;html=1;rounded=0;exitX=0.034;exitY=0.934;exitDx=0;exitDy=0;exitPerimeter=0;" target="0Fdsyet2t28CBkdKiNku-2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="410" y="340" as="sourcePoint" />
+            <mxPoint x="460" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-16" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" target="0Fdsyet2t28CBkdKiNku-8" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="410" y="140" as="sourcePoint" />
+            <mxPoint x="460" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-17" edge="1" parent="1" source="0Fdsyet2t28CBkdKiNku-6" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="410" y="340" as="sourcePoint" />
+            <mxPoint x="350" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-18" edge="1" parent="1" source="0Fdsyet2t28CBkdKiNku-22" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="350" y="380" as="sourcePoint" />
+            <mxPoint x="354" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-19" edge="1" parent="1" source="0Fdsyet2t28CBkdKiNku-12" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="410" y="340" as="sourcePoint" />
+            <mxPoint x="359" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-20" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="等级限制" vertex="1">
+          <mxGeometry height="30" width="70" x="561" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-21" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="资源限制" vertex="1">
+          <mxGeometry height="30" width="70" x="561" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="上阵士兵数" vertex="1">
+          <mxGeometry height="30" width="70" x="319" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="0Fdsyet2t28CBkdKiNku-23" edge="1" parent="1" source="0Fdsyet2t28CBkdKiNku-4" style="endArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="0Fdsyet2t28CBkdKiNku-5" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="410" y="340" as="sourcePoint" />
+            <mxPoint x="460" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
