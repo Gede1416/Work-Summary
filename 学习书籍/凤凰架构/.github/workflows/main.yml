@@ -1,0 +1,45 @@
+name: Generate Github-Pages from markdown files
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 14
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+
+      - name: Build
+        run: |
+          export TZ='Asia/Shanghai'
+          npm install
+          npm run build
+          echo "icyfenix.cn" >> .vuepress/dist/CNAME
+
+      - name: Deploy Github-Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: .vuepress/dist
+
+      - name: Setup Node.js 18 for CDN SDK
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install CDN SDK
+        run: npm install tencentcloud-sdk-nodejs-cdn
+
+      - name: Refresh Tencent CDN
+        run: node .vuepress/qcloud.cdn.refresh.js
+        env:
+          CDN_ID: ${{ secrets.CDN_ID }}
+          CDN_KEY: ${{ secrets.CDN_KEY }}
+        continue-on-error: true
